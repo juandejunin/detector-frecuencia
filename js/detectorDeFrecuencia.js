@@ -143,6 +143,7 @@ function autoCorrelate(buf, sampleRate) {
 
 // Actualiza continuamente la frecuencia de tono
 function updatePitch(time) {
+  console.log("actualizando señal")
   var cycles = new Array();
   analyser.getFloatTimeDomainData(buf);
   var ac = autoCorrelate(buf, audioContext.sampleRate);

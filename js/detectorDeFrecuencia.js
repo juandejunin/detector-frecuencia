@@ -1,39 +1,92 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Chris Wilson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+// Se asegura de que se utiliza el contexto de audio adecuado en todos los navegadores
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
 // Inicialización de variables globales
 var audioContext = null;
+var isPlaying = false;
+var sourceNode = null;
 var analyser = null;
-var detectorElem, pitchElem;
+var theBuffer = null;
+
+var mediaStreamSource = null;
+var detectorElem, pitchElem, detuneElem, detuneAmount;
 
 // La función window.onload se ejecuta cuando se carga completamente el documento HTML
 window.onload = function () {
   // Crea un contexto de audio
-  console.log("Creando contexto de audio...");
-  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  // El objeto AudioContext es parte de la Web Audio API, que es una interfaz de programación
+  //  de aplicaciones (API) de JavaScript diseñada para procesar y sintetizar audio en la web.
+  //  No es parte de JavaScript puro estándar, sino que es una API específica del navegador que
+  //   proporciona funcionalidades avanzadas para trabajar con audio en aplicaciones web.
+
+  audioContext = new AudioContext();
+  // Define el tamaño máximo para el análisis de frecuencia
+  MAX_SIZE = Math.max(4, Math.floor(audioContext.sampleRate / 5000)); // corresponde a una señal de 5kHz
 
   detectorElem = document.getElementById("detector");
   pitchElem = document.getElementById("pitch");
-
-  // Iniciar detección de tono
-  startPitchDetect();
+  detuneElem = document.getElementById("detune");
+  detuneAmount = document.getElementById("detune_amt");
 };
+
+
 
 // Inicia la detección de tono desde una fuente de audio en vivo
 function startPitchDetect() {
-  console.log("Iniciando detección de tono...");
+
+  sourceNode = audioContext.createOscillator();
+  analyser = audioContext.createAnalyser(); 
+  sourceNode.start(0);
+  isPlaying = true;
+  isLiveInput = false; 
+
+
   // Intenta obtener la entrada de audio
   navigator.mediaDevices
-    .getUserMedia({ audio: true })
+    .getUserMedia({
+      audio: {
+        mandatory: {
+          googEchoCancellation: "false",
+          googAutoGainControl: "false",
+          googNoiseSuppression: "false",
+          googHighpassFilter: "false",
+        },
+        optional: [],
+      },
+    })
     .then((stream) => {
-      console.log("Entrada de audio obtenida.");
       // Crea un nodo de audio a partir del flujo de entrada
-      var mediaStreamSource = audioContext.createMediaStreamSource(stream);
+      mediaStreamSource = audioContext.createMediaStreamSource(stream);
 
-      // Crea un analizador de frecuencia
+      // Conecta el nodo de entrada al analizador de frecuencia
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 2048;
-
-      // Conecta la fuente de audio al analizador de frecuencia
+      
       mediaStreamSource.connect(analyser);
-
       // Actualiza continuamente la frecuencia de tono
       updatePitch();
     })
@@ -45,9 +98,9 @@ function startPitchDetect() {
 }
 
 
+
 // Alterna la entrada de audio en vivo
 function toggleLiveInput() {
-  console.log("togglelive")
   if (isPlaying) {
     // Detiene la reproducción y retorna
     sourceNode.stop(0);
@@ -73,7 +126,6 @@ function toggleLiveInput() {
     gotStream
   );
 }
-
 
 var rafID = null;
 var tracks = null;
@@ -143,7 +195,6 @@ function autoCorrelate(buf, sampleRate) {
 
 // Actualiza continuamente la frecuencia de tono
 function updatePitch(time) {
-  console.log("actualizando señal")
   var cycles = new Array();
   analyser.getFloatTimeDomainData(buf);
   var ac = autoCorrelate(buf, audioContext.sampleRate);
@@ -161,3 +212,5 @@ function updatePitch(time) {
     window.requestAnimationFrame = window.webkitRequestAnimationFrame;
   rafID = window.requestAnimationFrame(updatePitch);
 }
+
+
